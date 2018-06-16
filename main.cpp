@@ -15,7 +15,7 @@ int main(int argc, char* argv[])
     constexpr char COULD_NOT_OPEN_OUTPUT[] = "Could not open output file";
     constexpr char INPUT_CORRUPT[] = "Operation could not be done, input file is corrupt";
     constexpr char SUCCESS[] = "Operation done successfully";
-    if (argc != 4 || strcmp(argv[1], "-c") != 0 && strcmp(argv[1], "-d") != 0) {
+    if (argc != 4 || (strcmp(argv[1], "-c") != 0 && strcmp(argv[1], "-d") != 0)) {
         std::cout << USAGE_MSG << std::endl;
         return 0;
     }
