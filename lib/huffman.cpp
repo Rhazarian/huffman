@@ -9,7 +9,7 @@
 #include <iostream>
 #include <stdexcept>
 
-#include "huffman.h"
+#include <huffman.h>
 
 namespace {
 
