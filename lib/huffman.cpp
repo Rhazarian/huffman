@@ -14,6 +14,7 @@
 namespace {
 
 typedef unsigned char byte_t;
+typedef uint64_t code_t;
 constexpr uint8_t bits_in_byte = std::numeric_limits<byte_t>::digits;
 
 struct bit_istream {
@@ -93,7 +94,7 @@ struct bit_ostream {
         buffer.fill(0);
     }
 
-    void write_bits(uint64_t bits, uint8_t count)
+    void write_bits(code_t bits, uint8_t count)
     {
         assert(count <= std::numeric_limits<decltype(bits)>::digits);
         bits <<= std::numeric_limits<decltype(bits)>::digits - count;
@@ -123,10 +124,10 @@ constexpr size_t ALPHABET_SIZE = 1u << std::numeric_limits<byte_t>::digits;
 struct symbol {
     byte_t byte;
     size_t count;
-    uint64_t code;
+    code_t code;
     uint8_t bits;
 
-    symbol(byte_t byte, size_t count, uint64_t code, uint8_t bits) : byte(byte), count(count), code(code), bits(bits) { }
+    symbol(byte_t byte, size_t count, code_t code, uint8_t bits) : byte(byte), count(count), code(code), bits(bits) { }
 };
 
 std::vector<symbol> build_histogram(bit_istream& istream)
@@ -158,7 +159,7 @@ struct encode_node {
             left(std::make_shared<encode_node>(left)), right(std::make_shared<encode_node>(right)) { }
 };
 
-void store_tree(encode_node const& node, uint64_t code, uint8_t bits, std::vector<symbol>& histogram,
+void store_tree(encode_node const& node, code_t code, uint8_t bits, std::vector<symbol>& histogram,
         bit_ostream& ostream)
 {
     assert(bits <= std::numeric_limits<decltype(code)>::digits);
