@@ -8,6 +8,7 @@
 #include <cassert>
 #include <iostream>
 #include <stdexcept>
+#include <limits>
 
 #include <huffman.h>
 
@@ -174,8 +175,8 @@ void store_tree(encode_node const& node, code_t code, uint8_t bits, std::vector<
         ostream.write_bits(0, 1);
     }
     ++bits;
-    store_tree(*node.left, (code << 1) + 0, bits, histogram, ostream);
-    store_tree(*node.right, (code << 1) + 1, bits, histogram, ostream);
+    store_tree(*node.left, (code << 1) | 0, bits, histogram, ostream);
+    store_tree(*node.right, (code << 1) | 1, bits, histogram, ostream);
 }
 
 constexpr size_t MAX_TREE_NODES = 511;
