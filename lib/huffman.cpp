@@ -17,6 +17,7 @@ namespace {
 typedef unsigned char byte_t;
 typedef uint64_t code_t;
 constexpr uint8_t bits_in_byte = std::numeric_limits<byte_t>::digits;
+constexpr uint8_t bits_in_code = std::numeric_limits<code_t>::digits;
 
 struct bit_istream {
     std::array<byte_t, 1u << 16u> buffer{};
@@ -97,10 +98,10 @@ struct bit_ostream {
 
     void write_bits(code_t bits, uint8_t count)
     {
-        assert(count <= std::numeric_limits<decltype(bits)>::digits);
-        bits <<= std::numeric_limits<decltype(bits)>::digits - count;
+        assert(count <= bits_in_code);
+        bits <<= bits_in_code - count;
         for (uint8_t i = 0; i < count; ++i) {
-            decltype(bits) mask = (decltype(bits)(1) << (std::numeric_limits<decltype(bits)>::digits - 1 - i));
+            decltype(bits) mask = (code_t(1) << (bits_in_code - 1 - i));
             buffer[size] |= (byte_t((bits & mask) != 0)) << (bits_in_byte - 1 - bit_pos);
             ++bit_pos;
             if (bit_pos == bits_in_byte) {
@@ -120,7 +121,7 @@ struct bit_ostream {
 
 };
 
-constexpr size_t ALPHABET_SIZE = 1u << std::numeric_limits<byte_t>::digits;
+constexpr size_t ALPHABET_SIZE = 1u << bits_in_byte;
 
 struct symbol {
     byte_t byte;
@@ -163,7 +164,7 @@ struct encode_node {
 void store_tree(encode_node const& node, code_t code, uint8_t bits, std::vector<symbol>& histogram,
         bit_ostream& ostream)
 {
-    assert(bits <= std::numeric_limits<decltype(code)>::digits);
+    assert(bits <= bits_in_code);
     if (!node.left && !node.right) {
         ostream.write_bits(1, 1);
         ostream.write_bits(node.byte, bits_in_byte);
@@ -206,13 +207,12 @@ void make_tree(std::vector<symbol>& histogram, bit_ostream& ostream)
 
 struct decode_node {
     byte_t byte;
-    std::shared_ptr<decode_node> left;
-    std::shared_ptr<decode_node> right;
+    std::shared_ptr<decode_node> children[2];
 
-    explicit decode_node(byte_t byte) : byte(byte), left(nullptr), right(nullptr) { }
+    explicit decode_node(byte_t byte) : byte(byte), children{nullptr, nullptr} { }
 
     decode_node(decode_node left, decode_node right) : byte(0),
-            left(std::make_shared<decode_node>(left)), right(std::make_shared<decode_node>(right)) { }
+            children({std::make_shared<decode_node>(left), std::make_shared<decode_node>(right)}) { }
 };
 
 decode_node recover_tree(bit_istream& istream)
@@ -279,12 +279,8 @@ void decompress(std::istream& in, std::ostream& out)
             throw std::runtime_error("Not enough data");
         }
         auto* node = &root;
-        while (!(!node->left && !node->right)) {
-            if (istream.read_bit()) {
-                node = node->right.get();
-            } else {
-                node = node->left.get();
-            }
+        while (!(!node->children[0] && !node->children[1])) {
+            node = node->children[istream.read_bit()].get();
         }
         out.put(node->byte);
     }
