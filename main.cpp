@@ -19,12 +19,12 @@ int main(int argc, char* argv[])
         std::cout << USAGE_MSG << std::endl;
         return 0;
     }
-    std::ifstream fin(argv[2]);
+    std::ifstream fin(argv[2], std::ios::binary);
     if (!fin) {
         std::cerr << COULD_NOT_OPEN_INPUT << std::endl;
         return -1;
     }
-    std::ofstream fout(argv[3]);
+    std::ofstream fout(argv[3], std::ios::binary);
     if (!fout) {
         std::cerr << COULD_NOT_OPEN_OUTPUT << std::endl;
         return -1;
