@@ -7,12 +7,14 @@
 #include <memory>
 #include <cassert>
 #include <iostream>
+#include <stdexcept>
 
 #include "huffman.h"
 
 namespace {
 
 typedef unsigned char byte_t;
+constexpr uint8_t bits_in_byte = std::numeric_limits<byte_t>::digits;
 
 struct bit_istream {
     std::array<byte_t, 1u << 16u> buffer{};
@@ -40,9 +42,10 @@ struct bit_istream {
     bool read_bit()
     {
         assert(pos < size);
-        bool bit = (buffer[pos] & (1 << (7 - bit_pos))) != 0;
-        bit_pos = static_cast<uint8_t>((bit_pos + 1) & 7);
-        if (bit_pos == 0) {
+        bool bit = (buffer[pos] & (1 << (bits_in_byte - 1 - bit_pos))) != 0;
+        ++bit_pos;
+        if (bit_pos == bits_in_byte) {
+            bit_pos = 0;
             ++pos;
             check_buffer();
         }
@@ -52,7 +55,7 @@ struct bit_istream {
     uint8_t read_8_bits()
     {
         assert(pos < size);
-        uint8_t bits = (buffer[pos] << bit_pos) | (buffer[pos + 1] >> (8 - bit_pos));
+        uint8_t bits = (buffer[pos] << bit_pos) | (buffer[pos + 1] >> (bits_in_byte - bit_pos));
         ++pos;
         check_buffer();
         return bits;
@@ -94,9 +97,10 @@ struct bit_ostream {
         bits <<= std::numeric_limits<decltype(bits)>::digits - count;
         for (uint8_t i = 0; i < count; ++i) {
             decltype(bits) mask = (decltype(bits)(1) << (std::numeric_limits<decltype(bits)>::digits - 1 - i));
-            buffer[size] |= (byte_t((bits & mask) != 0)) << (7 - bit_pos);
-            bit_pos = static_cast<uint8_t>((bit_pos + 1) & 7);
-            if (bit_pos == 0) {
+            buffer[size] |= (byte_t((bits & mask) != 0)) << (bits_in_byte - 1 - bit_pos);
+            ++bit_pos;
+            if (bit_pos == bits_in_byte) {
+                bit_pos = 0;
                 ++size;
                 if (size == buffer.size()) {
                     flush_buffer();
@@ -155,9 +159,9 @@ struct encode_node {
 void store_tree(encode_node const& node, uint64_t code, uint8_t bits, std::vector<symbol>& histogram,
         bit_ostream& ostream)
 {
-    if (!node.left.get() && !node.right.get()) {
+    if (!node.left && !node.right) {
         ostream.write_bits(1, 1);
-        ostream.write_bits(node.byte, 8);
+        ostream.write_bits(node.byte, bits_in_byte);
         histogram[node.byte].code = code;
         histogram[node.byte].bits = bits;
         return;
@@ -262,8 +266,11 @@ void decompress(std::istream& in, std::ostream& out)
     bit_istream istream(in);
     auto root = recover_tree(istream);
     for (size_t i = 0; i < file_size.value; ++i) {
+        if (!istream.has_more()) {
+            throw std::runtime_error("Not enough data");
+        }
         auto* node = &root;
-        while (!(!node->left.get() && !node->right.get())) {
+        while (!(!node->left && !node->right)) {
             if (istream.read_bit()) {
                 node = node->right.get();
             } else {

@@ -49,19 +49,6 @@ size_t random_short_str_length()
     return static_cast<size_t>(short_str_dist(gen));
 }
 
-std::uniform_int_distribution<> long_str_dist(10000, 100000); // NOLINT
-
-size_t random_long_str_length()
-{
-    return static_cast<size_t>(long_str_dist(gen));
-}
-
-std::uniform_int_distribution<> long_long_str_dist(100000, 1000000); // NOLINT
-
-size_t random_long_long_str_length()
-{
-    return static_cast<size_t>(long_long_str_dist(gen));
-}
 }
 
 TEST(correctness, random_short_strings) // NOLINT
@@ -73,6 +60,17 @@ TEST(correctness, random_short_strings) // NOLINT
     }
 }
 
+namespace {
+
+std::uniform_int_distribution<> long_str_dist(10000, 100000); // NOLINT
+
+size_t random_long_str_length()
+{
+    return static_cast<size_t>(long_str_dist(gen));
+}
+
+}
+
 TEST(correctness, random_long_strings) // NOLINT
 {
     constexpr size_t LOOP_COUNT = 50;
@@ -80,6 +78,17 @@ TEST(correctness, random_long_strings) // NOLINT
         std::string str = random_string(random_long_str_length());
         EXPECT_EQ(str, compress_decompress(str));
     }
+}
+
+namespace {
+
+std::uniform_int_distribution<> long_long_str_dist(100000, 1000000); // NOLINT
+
+size_t random_long_long_str_length()
+{
+    return static_cast<size_t>(long_long_str_dist(gen));
+}
+
 }
 
 TEST(correctness, random_long_long_strings) // NOLINT
