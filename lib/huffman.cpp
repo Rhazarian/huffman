@@ -33,6 +33,7 @@ struct bit_istream {
             for (size_t i = 0; i < shift; ++i) {
                 buffer[i] = buffer[pos + i];
             }
+            static_assert(sizeof(char) == sizeof(byte_t));
             istream.read(reinterpret_cast<char*>(buffer.data() + shift), buffer.size() - shift);
             size = shift + istream.gcount();
             pos = 0;
@@ -86,6 +87,7 @@ struct bit_ostream {
 
     void flush_buffer()
     {
+        static_assert(sizeof(char) == sizeof(byte_t));
         ostream.write(reinterpret_cast<const char*>(buffer.data()), size + (bit_pos != 0));
         size = bit_pos = 0;
         buffer.fill(0);
@@ -116,7 +118,6 @@ struct bit_ostream {
 
 };
 
-constexpr size_t MAX_TREE_NODES = 511;
 constexpr size_t ALPHABET_SIZE = 1u << std::numeric_limits<byte_t>::digits;
 
 struct symbol {
@@ -136,6 +137,7 @@ std::vector<symbol> build_histogram(bit_istream& istream)
         histogram.emplace_back(i, 0, 0, 0);
     }
     while (istream.has_more()) {
+        static_assert(bits_in_byte == 8);
         ++histogram[istream.read_8_bits()].count;
     }
     istream.rewind();
@@ -159,6 +161,7 @@ struct encode_node {
 void store_tree(encode_node const& node, uint64_t code, uint8_t bits, std::vector<symbol>& histogram,
         bit_ostream& ostream)
 {
+    assert(bits <= std::numeric_limits<decltype(code)>::digits);
     if (!node.left && !node.right) {
         ostream.write_bits(1, 1);
         ostream.write_bits(node.byte, bits_in_byte);
@@ -173,6 +176,8 @@ void store_tree(encode_node const& node, uint64_t code, uint8_t bits, std::vecto
     store_tree(*node.left, (code << 1) + 0, bits, histogram, ostream);
     store_tree(*node.right, (code << 1) + 1, bits, histogram, ostream);
 }
+
+constexpr size_t MAX_TREE_NODES = 511;
 
 void make_tree(std::vector<symbol>& histogram, bit_ostream& ostream)
 {
@@ -211,7 +216,8 @@ struct decode_node {
 decode_node recover_tree(bit_istream& istream)
 {
     if (istream.read_bit()) {
-        auto byte = istream.read_8_bits();
+        static_assert(bits_in_byte == 8);
+        byte_t byte = istream.read_8_bits();
         return decode_node(byte);
     }
     auto left = recover_tree(istream);
@@ -241,7 +247,8 @@ void compress(std::istream& in, std::ostream& out)
     bit_ostream ostream(out);
     make_tree(histogram, ostream);
     while (istream.has_more()) {
-        auto byte = istream.read_8_bits();
+        static_assert(bits_in_byte == 8);
+        byte_t byte = istream.read_8_bits();
         ostream.write_bits(histogram[byte].code, histogram[byte].bits);
     }
 }
